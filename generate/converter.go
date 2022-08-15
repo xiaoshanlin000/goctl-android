@@ -20,13 +20,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tal-tech/go-zero/core/collection"
-	sx "github.com/tal-tech/go-zero/core/stringx"
-	"github.com/tal-tech/go-zero/tools/goctl/api/spec"
-	annotation "github.com/tal-tech/go-zero/tools/goctl/api/util"
-	"github.com/tal-tech/go-zero/tools/goctl/util"
-	"github.com/tal-tech/go-zero/tools/goctl/util/stringx"
+	"github.com/zeromicro/go-zero/core/collection"
+	sx "github.com/zeromicro/go-zero/core/stringx"
+	"github.com/zeromicro/go-zero/tools/goctl/api/spec"
+	"github.com/zeromicro/go-zero/tools/goctl/util/stringx"
 )
+
+var NL = "\n"
 
 type (
 	Plugin struct {
@@ -87,7 +87,7 @@ func (p *Plugin) Convert() (*Spec, error) {
 	imports, routes := getRoute(list, beans)
 	ret.Service = IService{
 		ParentPackage: p.ParentPackage,
-		Import:        strings.Join(trimList(imports), util.NL),
+		Import:        strings.Join(trimList(removeDuplicateElement(imports)), NL),
 		Routes:        routes,
 	}
 
@@ -123,21 +123,20 @@ func getRoute(in []spec.Route, m map[string]*Bean) ([]string, []*Route) {
 	var imports []string
 
 	for _, each := range in {
-		handlerName, ok := annotation.GetAnnotationValue(each.Annotations, "server", "handler")
-		if !ok {
-			continue
-		}
-
-		doc, _ := annotation.GetAnnotationValue(each.Annotations, "doc", "summary")
-		if len(doc) > 0 {
-			doc = strings.ReplaceAll(doc, "'", "")
-			doc = strings.ReplaceAll(doc, "`", "")
-			doc = strings.ReplaceAll(doc, `"`, "")
-			doc = "// " + doc
+		handlerName := each.Handler
+		var doc = ""
+		if len(each.Doc) > 0 {
+			doc = each.Doc[0]
+			if len(doc) > 0 {
+				doc = strings.ReplaceAll(doc, "'", "")
+				doc = strings.ReplaceAll(doc, "`", "")
+				doc = strings.ReplaceAll(doc, `"`, "")
+				doc = "// " + doc
+			}
 		}
 
 		path, ids, idsExpr := parsePath(each.Path)
-		bean := m[strings.ToLower(each.RequestType.Name)]
+		bean := m[strings.ToLower(each.RequestType.Name())]
 
 		var queryId []string
 		var queryExpr, pathIdExpr string
@@ -162,11 +161,11 @@ func getRoute(in []spec.Route, m map[string]*Bean) ([]string, []*Route) {
 			MethodName:       stringx.From(handlerName).Untitle(),
 			Method:           strings.ToUpper(each.Method),
 			Path:             path,
-			RequestBeanName:  stringx.From(each.RequestType.Name).Title(),
-			ResponseBeanName: stringx.From(each.ResponseType.Name).Title(),
-			HasRequest:       len(each.RequestType.Name) > 0,
+			RequestBeanName:  stringx.From(each.RequestType.Name()).Title(),
+			ResponseBeanName: stringx.From(each.ResponseType.Name()).Title(),
+			HasRequest:       len(each.RequestType.Name()) > 0,
 			ShowRequestBody:  showRequestBody,
-			HasResponse:      len(each.ResponseType.Name) > 0,
+			HasResponse:      len(each.ResponseType.Name()) > 0,
 			HavePath:         len(ids) > 0,
 			PathId:           strings.Join(idsExpr, ","),
 			PathIdExpr:       pathIdExpr,
@@ -215,10 +214,10 @@ func toRetrofitPath(ids []string, bean *Bean) string {
 func getBean(parentPackage string, tp spec.Type) ([]*Bean, error) {
 	var bean Bean
 	var list []*Bean
-	bean.Name = stringx.From(tp.Name)
+	bean.Name = stringx.From(tp.Name())
 	bean.ParentPackage = parentPackage
 
-	for _, m := range tp.Members {
+	for _, m := range tp.(spec.DefineStruct).Members {
 		externalBeans, err := getBeans(parentPackage, m, &bean)
 		if err != nil {
 			return nil, err
@@ -230,7 +229,7 @@ func getBean(parentPackage string, tp spec.Type) ([]*Bean, error) {
 }
 
 func getBeans(parentPackage string, member spec.Member, bean *Bean) ([]*Bean, error) {
-	beans, imports, typeName, err := getTypeName(parentPackage, member.Expr, member.Type == "interface{}")
+	beans, imports, typeName, err := getTypeName(parentPackage, member.Type, member.Type.Name() == "interface{}")
 	if err != nil {
 		return nil, err
 	}
@@ -247,11 +246,11 @@ func getBeans(parentPackage string, member spec.Member, bean *Bean) ([]*Bean, er
 		bean.FormTag = append(bean.FormTag, name)
 	}
 
-	bean.Import = strings.Join(imports, util.NL)
-	comment := strings.Join(member.Comments, " ")
-	doc := strings.Join(member.Docs, util.NL)
+	bean.Import = strings.Join(removeDuplicateElement(imports), NL)
+	comment := member.Comment
+	doc := strings.Join(removeDuplicateElement(member.Docs), NL)
 	if len(comment) > 0 {
-		comment = "// " + comment
+		//comment = "// " + comment
 	}
 	if len(doc) > 0 {
 		doc = "// " + doc
@@ -271,12 +270,12 @@ func getTypeName(parentPackage string, expr interface{}, inter bool) ([]*Bean, [
 	switch v := expr.(type) {
 	case map[string]interface{}:
 		return getTypeName(parentPackage, unJsonMarshal(expr, inter), false)
-	case spec.BasicType:
-		imp, typeName := toJavaType(parentPackage, v.Name)
+	case spec.PrimitiveType:
+		imp, typeName := toJavaType(parentPackage, v.RawName)
 		set.AddStr(imp)
 		return nil, set.KeysStr(), typeName, nil
 	case spec.PointerType:
-		return getTypeName(parentPackage, v.Star, false)
+		return getTypeName(parentPackage, v.Type, false)
 	case spec.MapType:
 		set.AddStr("import java.util.HashMap;")
 		beans, imports, typeName, err := toJavaMap(parentPackage, v)
@@ -303,7 +302,7 @@ func getTypeName(parentPackage string, expr interface{}, inter bool) ([]*Bean, [
 			return nil, nil, "", err
 		}
 
-		imp, typeName := toJavaType(parentPackage, v.Name)
+		imp, typeName := toJavaType(parentPackage, v.Name())
 		set.AddStr(imp)
 		return beans, set.KeysStr(), typeName, nil
 	case Type:
@@ -320,7 +319,7 @@ func unJsonMarshal(expr interface{}, inter bool) interface{} {
 		return expr
 	}
 
-	var basicType spec.BasicType
+	var basicType spec.PrimitiveType
 	var pointerType spec.PointerType
 	var mapType spec.MapType
 	var arrayType spec.ArrayType
@@ -361,11 +360,10 @@ func unJsonMarshal(expr interface{}, inter bool) interface{} {
 }
 
 func toJavaArray(parentPackage string, a spec.ArrayType) ([]*Bean, []string, string, error) {
-	beans, imports, typeName, err := getTypeName(parentPackage, a.ArrayType, false)
+	beans, imports, typeName, err := getTypeName(parentPackage, a.Value, false)
 	if err != nil {
 		return nil, nil, "", err
 	}
-
 	return beans, imports, fmt.Sprintf("ArrayList<%s>", typeName), nil
 }
 
@@ -374,7 +372,6 @@ func toJavaMap(parentPackage string, m spec.MapType) ([]*Bean, []string, string,
 	if err != nil {
 		return nil, nil, "", err
 	}
-
 	return beans, imports, fmt.Sprintf("HashMap<String,%s>", typeName), nil
 }
 
@@ -433,4 +430,16 @@ func (t *Tag) IsForm() bool {
 
 func (t *Tag) GetTag() string {
 	return t.name
+}
+
+func removeDuplicateElement(languages []string) []string {
+	result := make([]string, 0, len(languages))
+	temp := map[string]struct{}{}
+	for _, item := range languages {
+		if _, ok := temp[item]; !ok {
+			temp[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
 }

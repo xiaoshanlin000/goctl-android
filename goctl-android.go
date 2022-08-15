@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	version  = "20201207"
+	version  = "20220815"
 	commands = []*cli.Command{
 		{
 			Name:   "android",

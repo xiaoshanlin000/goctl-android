@@ -16,12 +16,13 @@ package generate
 
 import (
 	"fmt"
+	"github.com/zeromicro/goctl-android/template"
+	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/tal-tech/go-zero/tools/goctl/util"
-	"github.com/tal-tech/go-zero/tools/goctl/util/stringx"
-	"github.com/zeromicro/goctl-android/template"
+	"github.com/zeromicro/go-zero/tools/goctl/util"
+	"github.com/zeromicro/go-zero/tools/goctl/util/stringx"
 )
 
 type (
@@ -78,7 +79,7 @@ func (b *Bean) GetMember(name string) *Member {
 func generateBean(dir string, bean Bean) error {
 	filename := filepath.Join(dir, bean.Name.ToCamel()+".java")
 	base := filepath.Dir(filename)
-	err := util.MkdirIfNotExist(base)
+	err := os.MkdirAll(base, os.ModePerm)
 	if err != nil {
 		return err
 	}

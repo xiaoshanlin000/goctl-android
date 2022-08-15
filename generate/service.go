@@ -15,16 +15,17 @@
 package generate
 
 import (
+	"github.com/zeromicro/goctl-android/template"
+	"os"
 	"path/filepath"
 
-	"github.com/tal-tech/go-zero/tools/goctl/util"
-	"github.com/zeromicro/goctl-android/template"
+	"github.com/zeromicro/go-zero/tools/goctl/util"
 )
 
 func generateService(dir string, data IService) error {
 	filename := filepath.Join(dir, "Service.java")
 	base := filepath.Dir(filename)
-	err := util.MkdirIfNotExist(base)
+	err := os.MkdirAll(base, os.ModePerm)
 	if err != nil {
 		return err
 	}

@@ -15,27 +15,26 @@
 package action
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"os"
-
 	"github.com/urfave/cli/v2"
+	"github.com/zeromicro/go-zero/tools/goctl/plugin"
 	"github.com/zeromicro/goctl-android/generate"
 )
 
 func Android(ctx *cli.Context) error {
 	pkg := ctx.String("package")
-	std, err := ioutil.ReadAll(os.Stdin)
+	p, err := plugin.NewPlugin()
+	if err != nil {
+		return err
+	}
+	api := p.Api
+	api.Service = api.Service.JoinPrefix()
+	var gp generate.Plugin
+	gp.ParentPackage = pkg
+	gp.Api = p.Api
+	gp.Dir = p.Dir
 	if err != nil {
 		return err
 	}
 
-	var plugin generate.Plugin
-	plugin.ParentPackage = pkg
-	err = json.Unmarshal(std, &plugin)
-	if err != nil {
-		return err
-	}
-
-	return generate.Do(plugin)
+	return generate.Do(gp)
 }
