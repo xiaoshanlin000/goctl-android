@@ -34,6 +34,7 @@ type (
 		Style         string
 		Dir           string
 		ParentPackage string
+		Hostname      string
 	}
 	Spec struct {
 		Beans   []*Bean
@@ -87,6 +88,7 @@ func (p *Plugin) Convert() (*Spec, error) {
 	imports, routes := getRoute(list, beans)
 	ret.Service = IService{
 		ParentPackage: p.ParentPackage,
+		Hostname:      p.Hostname,
 		Import:        strings.Join(trimList(removeDuplicateElement(imports)), NL),
 		Routes:        routes,
 	}

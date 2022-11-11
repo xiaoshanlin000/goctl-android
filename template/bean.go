@@ -15,8 +15,11 @@
 package template
 
 var Bean = `package {{.ParentPackage}}.bean;
+
 {{.Import}}
-public class {{.Name.ToCamel}} {
+import java.io.Serializable;
+
+public class {{.Name.ToCamel}} implements Serializable {
 	{{range $index,$item :=  .Members}}{{$item.Doc}}
 	private {{$item.TypeName}} {{$item.Name.Untitle}}; {{$item.Comment}}
 	{{end}}{{range $index,$item :=  .Members}}

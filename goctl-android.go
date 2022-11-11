@@ -23,8 +23,9 @@ import (
 	"github.com/zeromicro/goctl-android/action"
 )
 
+
 var (
-	version  = "20220815"
+	version  = "20221111"
 	commands = []*cli.Command{
 		{
 			Name:   "android",
@@ -34,6 +35,10 @@ var (
 				&cli.StringFlag{
 					Name:  "package",
 					Usage: "the package of android",
+				},
+				&cli.StringFlag{
+					Name:  "hostname",
+					Usage: "hostname",
 				},
 			},
 		},
@@ -49,3 +54,4 @@ func main() {
 		fmt.Printf("goctl-android: %+v\n", err)
 	}
 }
+

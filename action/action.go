@@ -15,13 +15,14 @@
 package action
 
 import (
+	"ApiService/plugin/android_plugin/generate"
 	"github.com/urfave/cli/v2"
 	"github.com/zeromicro/go-zero/tools/goctl/plugin"
-	"github.com/zeromicro/goctl-android/generate"
 )
 
 func Android(ctx *cli.Context) error {
 	pkg := ctx.String("package")
+	hostName := ctx.String("hostname")
 	p, err := plugin.NewPlugin()
 	if err != nil {
 		return err
@@ -30,6 +31,11 @@ func Android(ctx *cli.Context) error {
 	api.Service = api.Service.JoinPrefix()
 	var gp generate.Plugin
 	gp.ParentPackage = pkg
+	if hostName == "" {
+		gp.Hostname = "http://localhost:8080/"
+	} else {
+		gp.Hostname = hostName
+	}
 	gp.Api = p.Api
 	gp.Dir = p.Dir
 	if err != nil {

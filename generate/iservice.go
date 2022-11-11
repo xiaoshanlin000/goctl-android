@@ -15,7 +15,7 @@
 package generate
 
 import (
-	"github.com/zeromicro/goctl-android/template"
+	"ApiService/plugin/android_plugin/template"
 	"os"
 	"path/filepath"
 
@@ -42,6 +42,7 @@ type (
 	}
 	IService struct {
 		ParentPackage string
+		Hostname      string
 		Import        string
 		Routes        []*Route
 	}
